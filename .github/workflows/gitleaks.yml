@@ -1,17 +1,20 @@
 name: Secret scan
 
-# Runs gitleaks against every PR and against pushes to the default
-# branch. PR runs scan only the commits added by the PR; default-branch
-# runs scan the full history.
+# Scans for secrets with gitleaks via the official action. The action
+# does delta scans on push/PR events (fast) and full-history scans on
+# schedule and workflow_dispatch. The nightly schedule re-validates the
+# entire history in case any commit slipped through delta scanning.
 #
-# Uses the gitleaks binary directly rather than the
-# gitleaks/gitleaks-action wrapper because the wrapper requires a
-# paid license for org accounts.
+# The official action requires no license key for personal-account
+# repos (license is only required for organization accounts).
 
 on:
   push:
     branches: [main, master]
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *"
 
 permissions:
   contents: read
@@ -26,26 +29,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Install gitleaks
-        uses: taiki-e/install-action@v2
-        with:
-          tool: gitleaks
-
       - name: Scan
-        shell: bash
+        uses: gitleaks/gitleaks-action@v3
         env:
-          GITLEAKS_COMMON: --redact --no-banner --verbose --exit-code 1
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            gitleaks detect \
-              --source . \
-              --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" \
-              $GITLEAKS_COMMON
-          else
-            gitleaks detect --source . $GITLEAKS_COMMON
-          fi
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: false
