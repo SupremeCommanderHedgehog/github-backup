@@ -30,8 +30,26 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$pwsh       = (Get-Command pwsh -ErrorAction Stop).Source
+# Resolve an absolute pwsh path for the task action that stays valid after
+# PowerShell auto-updates. Get-Command returns the on-PATH interpreter, which
+# is guaranteed to exist. For a Microsoft Store install that path is a
+# version-pinned package path
+# (…\WindowsApps\Microsoft.PowerShell..._<ver>_…\pwsh.exe) that the next update
+# deletes, which would fail the task with ERROR_FILE_NOT_FOUND (0x80070002).
+# In that one case swap in the per-user app-execution-alias stub — a stable
+# absolute path that always resolves to the current Store build and is verified
+# launchable from Task Scheduler under an Interactive principal. If the stub is
+# unavailable (aliases disabled, unusual packaging), keep the resolved path so
+# the task is still registered and runs until the next update. MSI/zip/portable
+# installs already report a stable path and are used unchanged.
+$pwsh = (Get-Command pwsh -ErrorAction Stop).Source
+if ($pwsh -like '*\WindowsApps\Microsoft.PowerShell*' -and $env:LOCALAPPDATA) {
+    $aliasStub = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\pwsh.exe'
+    if (Test-Path -LiteralPath $aliasStub) { $pwsh = $aliasStub }
+}
+
 $scriptPath = Join-Path $PSScriptRoot 'backup.ps1'
+$pwshArgs   = '-NoProfile -NonInteractive -File "{0}"' -f $scriptPath
 
 if (-not (Test-Path $scriptPath)) {
     throw "backup.ps1 not found at: $scriptPath"
@@ -39,7 +57,7 @@ if (-not (Test-Path $scriptPath)) {
 
 $action = New-ScheduledTaskAction `
     -Execute $pwsh `
-    -Argument ('-NoProfile -NonInteractive -File "{0}"' -f $scriptPath) `
+    -Argument $pwshArgs `
     -WorkingDirectory $PSScriptRoot
 
 $trigger = if ($Frequency -eq 'Daily') {
@@ -70,7 +88,7 @@ Register-ScheduledTask `
 Write-Host "Registered scheduled task '$TaskName':" -ForegroundColor Green
 Write-Host "  Frequency: $Frequency at $Time"
 Write-Host "  Runs as:   $env:USERDOMAIN\$env:USERNAME (only while logged on)"
-Write-Host "  Command:   $pwsh -NoProfile -NonInteractive -File `"$scriptPath`""
+Write-Host "  Command:   `"$pwsh`" $pwshArgs"
 Write-Host ""
-Write-Host "Test it now with:" -ForegroundColor Cyan
-Write-Host "    Start-ScheduledTask -TaskName '$TaskName'"
+Write-Host "Test it now by running the backup directly (does not touch the scheduled task):" -ForegroundColor Cyan
+Write-Host "    `"$pwsh`" $pwshArgs"
