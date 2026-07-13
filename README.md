@@ -84,7 +84,6 @@ pwsh -File .\Install-Schedule.ps1
 ### What `Register-Setup.ps1` does
 
 - Self-elevates to admin (needed once to register the Event Log source)
-- Installs the `CredentialManager` module from PSGallery if missing
 - Prompts for the **new-account** GitHub PAT and the GitLab PAT
 - Verifies the GitLab PAT works and reports the namespace mirrors will land
   in (`gitlab.com/<your-handle>/<repo>`)
@@ -140,7 +139,7 @@ which will require you to enter your Windows password.
 | `GitHubUser` | `your-github-username` | New primary account. Determines backup source and migration target. |
 | `OldGitHubUser` | `your-old-github-username` | Migration source only. Not touched by `backup.ps1`. |
 | `GitLabHost` | `https://gitlab.com` | Change for self-managed GitLab. |
-| `CachePath` | `C:\github-backup-cache` | Bare clones, one per repo. Migration leaves these with `origin` pointing at the new account. Point this at any drive/folder you like. |
+| `CachePath` | `C:\github-backup-cache` | Bare clones, one per repo. Migration leaves these with `origin` pointing at the new account. Prefer a drive with room for a full mirror of every repo — point it at a data drive (e.g. `D:\`) if your system drive is small. |
 | `LogPath` | `C:\github-backup-cache\logs` | One log file per run, timestamped. |
 | `EventLogSource` | `GitHubBackup` | Windows Application Event Log source. |
 | `GitHubCredentialName` | `github-backup/github-pat` | New-account PAT target name in Credential Manager. |

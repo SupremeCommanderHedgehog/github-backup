@@ -9,9 +9,10 @@
     admin (registering the Event Log source) by spawning a tiny helper
     process; UAC will prompt once.
 
-    Installs the CredentialManager module if needed, prompts for and stores
-    the GitHub + GitLab PATs in Windows Credential Manager, creates the
-    GitLab backup group (falling back to GitLabGroupPathFallback if needed).
+    Prompts for and stores the GitHub + GitLab PATs in Windows Credential
+    Manager (via the native advapi32 Cred* APIs in lib/Credentials.psm1 — no
+    PowerShell modules are installed), verifies the GitLab PAT, and creates
+    the cache + log directories.
 
     Idempotent: safe to re-run.
 #>
@@ -31,6 +32,9 @@ $transcriptPath = Join-Path $transcriptDir ('register-setup-{0:yyyyMMdd-HHmmss}.
 try { Start-Transcript -Path $transcriptPath -ErrorAction SilentlyContinue | Out-Null } catch {}
 
 try {
+    if (-not (Test-Path -LiteralPath $ConfigPath)) {
+        throw "Config file '$ConfigPath' not found. Copy config.example.psd1 to config.psd1 and edit it first (see README)."
+    }
     $config = Import-PowerShellDataFile -Path $ConfigPath
 
     Write-Host '=== GitHub backup setup ===' -ForegroundColor Cyan

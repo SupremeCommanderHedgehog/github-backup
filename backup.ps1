@@ -28,6 +28,9 @@ Import-Module (Join-Path $PSScriptRoot 'lib\GitHub.psm1')      -Force
 Import-Module (Join-Path $PSScriptRoot 'lib\GitLab.psm1')      -Force
 Import-Module (Join-Path $PSScriptRoot 'lib\Mirror.psm1')      -Force
 
+if (-not (Test-Path -LiteralPath $ConfigPath)) {
+    throw "Config file '$ConfigPath' not found. Copy config.example.psd1 to config.psd1 and edit it first (see README)."
+}
 $config = Import-PowerShellDataFile -Path $ConfigPath
 Initialize-Log -LogPath $config.LogPath -EventLogSource $config.EventLogSource
 
