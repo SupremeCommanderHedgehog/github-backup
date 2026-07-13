@@ -1,2 +1,6 @@
 # Claude Code local IDE settings — per-machine, not for sharing
 .claude/settings.local.json
+
+# Personal configuration — copy config.example.psd1 to config.psd1 and edit.
+# Never commit your real handles / paths.
+config.psd1

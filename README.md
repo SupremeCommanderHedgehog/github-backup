@@ -11,7 +11,7 @@ modified.
 
 ## Phase 1: migration (one-time)
 
-For each repo owned by `OldGitHubUser`:
+For each repo owned by your old account (the `OldGitHubUser` in `config.psd1`):
 
 1. If the new account doesn't already have a repo with that name, create one
    (private; description copied if `PreserveDescription`).
@@ -27,7 +27,7 @@ Idempotent: safe to re-run after fixing partial failures.
 
 ## Phase 2: ongoing backup
 
-For each repo owned by the new `GitHubUser`:
+For each repo owned by your new account (the `GitHubUser` in `config.psd1`):
 
 1. `git remote update --prune` against the cache (origin already points at the
    new account after migration).
@@ -45,10 +45,10 @@ configurable.
 - PowerShell 7+ (`pwsh`)
 - Git for Windows (with `git-lfs` if you use LFS)
 - PATs:
-  - **Old GitHub account** (`your-old-github-username` by default) — needed only during migration.
-    Fine-grained PAT, read-only: `Contents: Read` + `Metadata: Read` on all
-    repos.
-  - **New GitHub account** (`your-github-username` by default). For
+  - **Old GitHub account** (configured via `OldGitHubUser`) — needed only
+    during migration. Fine-grained PAT, read-only: `Contents: Read` +
+    `Metadata: Read` on all repos.
+  - **New GitHub account** (configured via `GitHubUser`). For
     migration it needs `Administration: Write` (to create repos) +
     `Contents: Read/Write` (to push) + `Workflows: Read/Write` (GitHub
     rejects pushes that touch `.github/workflows/*` without this) +
@@ -61,7 +61,10 @@ configurable.
 ## End-to-end workflow
 
 ```powershell
-# 1. Edit config.psd1 if you want non-default group name, cache path, etc.
+# 1. Copy the config template and edit it with your handles, cache path, etc.
+#    config.psd1 is gitignored so your personal values are never committed.
+Copy-Item config.example.psd1 config.psd1
+# ...then edit config.psd1
 
 # 2. Store the NEW-account GitHub PAT + GitLab PAT, register Event Log
 #    source, create GitLab group.
@@ -137,8 +140,8 @@ which will require you to enter your Windows password.
 | `GitHubUser` | `your-github-username` | New primary account. Determines backup source and migration target. |
 | `OldGitHubUser` | `your-old-github-username` | Migration source only. Not touched by `backup.ps1`. |
 | `GitLabHost` | `https://gitlab.com` | Change for self-managed GitLab. |
-| `CachePath` | `D:\github-backup-cache` | Bare clones, one per repo. Migration leaves these with `origin` pointing at the new account. |
-| `LogPath` | `D:\github-backup-cache\logs` | One log file per run, timestamped. |
+| `CachePath` | `C:\github-backup-cache` | Bare clones, one per repo. Migration leaves these with `origin` pointing at the new account. Point this at any drive/folder you like. |
+| `LogPath` | `C:\github-backup-cache\logs` | One log file per run, timestamped. |
 | `EventLogSource` | `GitHubBackup` | Windows Application Event Log source. |
 | `GitHubCredentialName` | `github-backup/github-pat` | New-account PAT target name in Credential Manager. |
 | `OldGitHubCredentialName` | `github-backup/old-github-pat` | Old-account PAT, only present during migration. |
@@ -208,3 +211,20 @@ unlikely to bite the current design.
 it only fires while you're logged on. To make it run while logged off, edit
 the task's principal in Task Scheduler (you'll be prompted for your Windows
 password).
+
+## Contributing
+
+Bug reports and pull requests are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for how to set up the pre-commit secret
+scan and what to check before opening a PR.
+
+## Security
+
+This tool handles GitHub and GitLab access tokens. To report a vulnerability,
+see [SECURITY.md](SECURITY.md) &mdash; please do not open a public issue for
+security problems.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE)
+for attribution details.

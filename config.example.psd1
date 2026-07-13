@@ -1,9 +1,15 @@
 @{
+    # Copy this file to `config.psd1` and fill in your own values.
+    # `config.psd1` is gitignored so your personal handles and paths never
+    # get committed. All scripts default to `config.psd1` (override with
+    # -ConfigPath).
+
     # === Primary GitHub source (used by backup.ps1) ===
     GitHubUser                = 'your-github-username'
     GitHubCredentialName      = 'github-backup/github-pat'
 
     # === Old GitHub account (used by Migrate-ToNewAccount.ps1 only) ===
+    # Leave as-is if you are not migrating from a previous account.
     OldGitHubUser             = 'your-old-github-username'
     OldGitHubCredentialName   = 'github-backup/old-github-pat'
 
@@ -16,8 +22,9 @@
     GitLabCredentialName      = 'github-backup/gitlab-pat'
 
     # === Local cache ===
-    CachePath                 = 'D:\github-backup-cache'
-    LogPath                   = 'D:\github-backup-cache\logs'
+    # Point these at any drive/folder you like.
+    CachePath                 = 'C:\github-backup-cache'
+    LogPath                   = 'C:\github-backup-cache\logs'
 
     # === Logging ===
     EventLogSource            = 'GitHubBackup'
