@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # Keep the GitHub Actions used in .github/workflows/* current (and let
+  # Dependabot bump/pin action versions, including security updates).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"

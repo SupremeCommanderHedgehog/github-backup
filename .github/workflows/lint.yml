@@ -1,0 +1,41 @@
+name: Lint
+
+# Static analysis of the PowerShell scripts/modules with PSScriptAnalyzer.
+# Runs cross-platform on ubuntu (PSSA analyzes, it does not execute the
+# Windows-only APIs). Rule configuration lives in PSScriptAnalyzerSettings.psd1.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  psscriptanalyzer:
+    name: PSScriptAnalyzer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+          if ($results) {
+            $results | Sort-Object Severity, ScriptName, Line |
+              Format-Table Severity, RuleName, Line, ScriptName, Message -AutoSize -Wrap |
+              Out-String -Width 200 | Write-Host
+            Write-Host "::error::PSScriptAnalyzer found $($results.Count) issue(s)."
+            exit 1
+          }
+          Write-Host "PSScriptAnalyzer: no issues found."

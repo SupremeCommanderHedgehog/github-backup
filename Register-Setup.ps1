@@ -29,7 +29,7 @@ $ErrorActionPreference = 'Stop'
 $transcriptDir = Join-Path $env:TEMP 'github-backup-setup'
 New-Item -ItemType Directory -Force -Path $transcriptDir | Out-Null
 $transcriptPath = Join-Path $transcriptDir ('register-setup-{0:yyyyMMdd-HHmmss}.log' -f (Get-Date))
-try { Start-Transcript -Path $transcriptPath -ErrorAction SilentlyContinue | Out-Null } catch {}
+try { Start-Transcript -Path $transcriptPath -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "Transcript unavailable: $_" }
 
 try {
     if (-not (Test-Path -LiteralPath $ConfigPath)) {
@@ -157,5 +157,5 @@ try {
     Write-Host "Transcript: $transcriptPath" -ForegroundColor Yellow
     exit 1
 } finally {
-    try { Stop-Transcript -ErrorAction SilentlyContinue | Out-Null } catch {}
+    try { Stop-Transcript -ErrorAction SilentlyContinue | Out-Null } catch { Write-Verbose "Stop-Transcript failed: $_" }
 }
