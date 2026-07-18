@@ -71,16 +71,37 @@ try {
         try {
             $projectPath = "$glNamespace/$($repo.name)"
             $existing = Get-GitLabProject -GitLabHost $config.GitLabHost -Token $glToken -ProjectPath $projectPath
+
+            # A project the user deleted on GitLab is only soft-deleted: it lingers
+            # for a retention window, still occupying its path but read-only, so the
+            # mirror push fails with 403. It also answers "exists" here, so without
+            # this we'd never recreate it either. Restore it back to writable.
+            if ($existing) {
+                $pendingDeletion = Get-GitLabProjectDeletionSchedule -Project $existing
+                if ($pendingDeletion) {
+                    Write-Log -Level WARN ("  GitLab project '{0}' is pending deletion (scheduled {1}); restoring it" -f $projectPath, $pendingDeletion)
+                    $null = Restore-GitLabProject -GitLabHost $config.GitLabHost -Token $glToken -ProjectId $existing.id
+                    $existing = Get-GitLabProject -GitLabHost $config.GitLabHost -Token $glToken -ProjectPath $projectPath
+                }
+            }
+
             if (-not $existing) {
                 Write-Log "  creating GitLab project: $projectPath"
                 # NamespaceId omitted -> GitLab creates under the authenticated user
-                $null = New-GitLabProject `
+                $existing = New-GitLabProject `
                     -GitLabHost   $config.GitLabHost `
                     -Token        $glToken `
                     -Name         $repo.name `
                     -Path         $repo.name `
                     -Visibility   $config.GitLabVisibility `
                     -Description  ("Mirror of github.com/{0}" -f $repo.full_name)
+            }
+
+            # GitLab auto-protects the default branch; on a mirror that blocks the
+            # force-updates push --mirror needs. Strip protection before pushing.
+            $clearedRules = Clear-GitLabProtectedBranches -GitLabHost $config.GitLabHost -Token $glToken -ProjectId $existing.id
+            if ($clearedRules -gt 0) {
+                Write-Log ("  cleared {0} protected-branch rule(s) on mirror" -f $clearedRules)
             }
 
             $cachePath = Join-Path $config.CachePath ("{0}.git" -f $repo.name)

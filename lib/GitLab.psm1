@@ -77,4 +77,61 @@ function New-GitLabProject {
     return Invoke-GitLabApi -GitLabHost $GitLabHost -Token $Token -Path '/api/v4/projects' -Method POST -Body $body
 }
 
-Export-ModuleMember -Function Get-GitLabCurrentUser, Get-GitLabProject, New-GitLabProject
+function Get-GitLabProjectDeletionSchedule {
+    # Returns the pending-deletion timestamp for a project object, or $null if the
+    # project is not scheduled for deletion. GitLab renamed this field from
+    # 'marked_for_deletion_on' to 'marked_for_deletion_at'; check both, and probe
+    # via PSObject so an absent field yields $null instead of throwing under
+    # Set-StrictMode.
+    [CmdletBinding()]
+    param([Parameter(Mandatory)]$Project)
+    foreach ($name in 'marked_for_deletion_at', 'marked_for_deletion_on') {
+        $prop = $Project.PSObject.Properties[$name]
+        if ($prop -and $prop.Value) { return $prop.Value }
+    }
+    return $null
+}
+
+function Restore-GitLabProject {
+    # Undo a pending (delayed) deletion. gitlab.com keeps a deleted project for
+    # a retention window during which it exists but is read-only, so pushes fail
+    # with HTTP 403 "You are not allowed to push code to this project". Restoring
+    # makes it writable again. The restore route requires the numeric project id
+    # (the URL-encoded path form returns 405).
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$GitLabHost,
+        [Parameter(Mandatory)][string]$Token,
+        [Parameter(Mandatory)][int]$ProjectId
+    )
+    return Invoke-GitLabApi -GitLabHost $GitLabHost -Token $Token `
+        -Path "/api/v4/projects/$ProjectId/restore" -Method POST
+}
+
+function Clear-GitLabProtectedBranches {
+    # Remove every branch-protection rule on a mirror project. GitLab auto-protects
+    # the default branch on a project's first push; thereafter `git push --mirror`
+    # fails whenever it needs to force-update that branch (rebased history, deleted
+    # refs) with "You are not allowed to force push code to a protected branch".
+    # Mirrors are throwaway copies of the GitHub source, so protection serves no
+    # purpose here. Returns the number of rules removed.
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$GitLabHost,
+        [Parameter(Mandatory)][string]$Token,
+        [Parameter(Mandatory)][int]$ProjectId
+    )
+    $response = Invoke-GitLabApi -GitLabHost $GitLabHost -Token $Token `
+        -Path "/api/v4/projects/$ProjectId/protected_branches?per_page=100"
+    # An empty list comes back as $null; filter it so the loop doesn't try to
+    # dereference a null element under Set-StrictMode.
+    $protected = @($response | Where-Object { $null -ne $_ })
+    foreach ($b in $protected) {
+        $name = [uri]::EscapeDataString($b.name)
+        $null = Invoke-GitLabApi -GitLabHost $GitLabHost -Token $Token `
+            -Path "/api/v4/projects/$ProjectId/protected_branches/$name" -Method DELETE
+    }
+    return $protected.Count
+}
+
+Export-ModuleMember -Function Get-GitLabCurrentUser, Get-GitLabProject, New-GitLabProject, Get-GitLabProjectDeletionSchedule, Restore-GitLabProject, Clear-GitLabProtectedBranches
